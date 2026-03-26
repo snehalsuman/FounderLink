@@ -61,6 +61,10 @@ jobs:
         run: mvn clean package -DskipTests -q
         working-directory: api-gateway
 
+      - name: Build Payment Service
+        run: mvn clean package -DskipTests -q
+        working-directory: PaymentService
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -149,6 +153,13 @@ jobs:
           context: ./api-gateway
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/founderlink-gateway:latest
+
+      - name: Build and push Payment Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./PaymentService
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/founderlink-payment:latest
 
       - name: Build and push Frontend
         uses: docker/build-push-action@v5
