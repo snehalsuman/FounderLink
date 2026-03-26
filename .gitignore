@@ -1,0 +1,30 @@
+# Maven build output
+**/target/
+**/*.class
+**/*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+**/.DS_Store
+.metadata/
+out/
+
+# Claude AI files
+.claude/
+
+# Node modules
+founderlink-frontend/node_modules/
+founderlink-frontend/build/
+
+# Root .env has DB passwords - DO NOT commit
+.env
+
+# Logs
+*.log
+**/logs/
+
+# Misc
+*.resolved
+founderlink_documentation.md.resolved

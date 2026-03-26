@@ -1,0 +1,10 @@
+package com.capgemini.notification.enums;
+
+public enum NotificationType {
+    STARTUP_CREATED,
+    STARTUP_REJECTED,
+    INVESTMENT_CREATED,
+    INVESTMENT_APPROVED,
+    INVESTMENT_REJECTED,
+    TEAM_INVITE_SENT
+}
