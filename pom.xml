@@ -22,6 +22,7 @@
         <module>TeamService</module>
         <module>MessagingService</module>
         <module>NotificationService</module>
+        <module>PaymentService</module>
     </modules>
 
 </project>
