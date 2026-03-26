@@ -39,7 +39,6 @@ public class PaymentService {
     private String razorpayKeySecret;
 
     public Map<String, Object> createOrder(CreateOrderRequest request) throws RazorpayException {
-        // Amount in paise (multiply by 100)
         int amountInPaise = (int) (request.getAmount() * 100);
 
         JSONObject orderRequest = new JSONObject();
@@ -49,7 +48,6 @@ public class PaymentService {
 
         Order razorpayOrder = razorpayClient.orders.create(orderRequest);
 
-        // Save payment record
         Payment payment = new Payment();
         payment.setRazorpayOrderId(razorpayOrder.get("id"));
         payment.setInvestorId(request.getInvestorId());
@@ -71,73 +69,119 @@ public class PaymentService {
 
     public Map<String, Object> verifyPayment(VerifyPaymentRequest request) {
         Map<String, Object> response = new HashMap<>();
+
+        // Step 1: Verify Razorpay signature
+        boolean isValid;
         try {
-            // Verify signature
             JSONObject attributes = new JSONObject();
             attributes.put("razorpay_order_id", request.getRazorpayOrderId());
             attributes.put("razorpay_payment_id", request.getRazorpayPaymentId());
             attributes.put("razorpay_signature", request.getRazorpaySignature());
-
-            boolean isValid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
-
-            Payment payment = paymentRepository.findByRazorpayOrderId(request.getRazorpayOrderId())
-                    .orElseThrow(() -> new RuntimeException("Payment not found"));
-
-            if (isValid) {
-                payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
-                payment.setRazorpaySignature(request.getRazorpaySignature());
-                payment.setStatus(Payment.PaymentStatus.SUCCESS);
-                payment.setUpdatedAt(LocalDateTime.now());
-                paymentRepository.save(payment);
-
-                // Publish success event to RabbitMQ
-                PaymentEventDTO event = new PaymentEventDTO(
-                        payment.getId(),
-                        payment.getInvestorId(),
-                        payment.getFounderId(),
-                        payment.getStartupId(),
-                        payment.getStartupName(),
-                        payment.getInvestorName(),
-                        payment.getAmount(),
-                        request.getRazorpayPaymentId(),
-                        "SUCCESS"
-                );
-                rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_SUCCESS_KEY, event);
-                log.info("Payment success event published for paymentId: {}", payment.getId());
-
-                // Send email notifications
-                emailService.sendPaymentSuccessEmailToInvestor(payment);
-                emailService.sendPaymentReceivedEmailToFounder(payment);
-
-                response.put("success", true);
-                response.put("message", "Payment verified successfully");
-                response.put("paymentId", payment.getId());
-            } else {
-                payment.setStatus(Payment.PaymentStatus.FAILED);
-                payment.setUpdatedAt(LocalDateTime.now());
-                paymentRepository.save(payment);
-
-                PaymentEventDTO event = new PaymentEventDTO(
-                        payment.getId(),
-                        payment.getInvestorId(),
-                        payment.getFounderId(),
-                        payment.getStartupId(),
-                        payment.getStartupName(),
-                        payment.getInvestorName(),
-                        payment.getAmount(),
-                        null,
-                        "FAILED"
-                );
-                rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_FAILED_KEY, event);
-
-                response.put("success", false);
-                response.put("message", "Payment verification failed");
-            }
+            isValid = Utils.verifyPaymentSignature(attributes, razorpayKeySecret);
         } catch (Exception e) {
-            log.error("Error verifying payment: {}", e.getMessage());
+            log.error("Signature verification error: {}", e.getMessage());
             response.put("success", false);
-            response.put("message", "Error: " + e.getMessage());
+            response.put("message", "Signature verification error: " + e.getMessage());
+            return response;
         }
+
+        // Step 2: Find payment record
+        Payment payment;
+        try {
+            payment = paymentRepository.findByRazorpayOrderId(request.getRazorpayOrderId())
+                    .orElseThrow(() -> new RuntimeException("Payment record not found for order: " + request.getRazorpayOrderId()));
+        } catch (Exception e) {
+            log.error("Payment lookup error: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return response;
+        }
+
+        // Step 3: Razorpay verified — save as AWAITING_APPROVAL (founder must accept)
+        if (isValid) {
+            payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
+            payment.setRazorpaySignature(request.getRazorpaySignature());
+            payment.setStatus(Payment.PaymentStatus.AWAITING_APPROVAL);
+            payment.setUpdatedAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+            log.info("Payment Razorpay-verified, awaiting founder approval. paymentId={}", payment.getId());
+
+            // Notify founder to review (non-critical)
+            try {
+                PaymentEventDTO event = new PaymentEventDTO(
+                        payment.getId(), payment.getInvestorId(), payment.getFounderId(),
+                        payment.getStartupId(), payment.getStartupName(), payment.getInvestorName(),
+                        payment.getAmount(), request.getRazorpayPaymentId(), "AWAITING_APPROVAL"
+                );
+                rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_PENDING_KEY, event);
+            } catch (Exception e) {
+                log.warn("RabbitMQ unavailable: {}", e.getMessage());
+            }
+
+            response.put("success", true);
+            response.put("message", "Payment received. Awaiting founder approval.");
+            response.put("paymentId", payment.getId());
+            response.put("status", "AWAITING_APPROVAL");
+        } else {
+            payment.setStatus(Payment.PaymentStatus.FAILED);
+            payment.setUpdatedAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+            log.warn("Payment signature invalid for orderId: {}", request.getRazorpayOrderId());
+            response.put("success", false);
+            response.put("message", "Payment signature invalid");
+        }
+        return response;
+    }
+
+    // Founder accepts the investment — fires notifications and emails
+    public Map<String, Object> acceptPayment(Long paymentId) {
+        Map<String, Object> response = new HashMap<>();
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        payment.setStatus(Payment.PaymentStatus.SUCCESS);
+        payment.setUpdatedAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+        log.info("Founder accepted payment. paymentId={}", paymentId);
+
+        // Publish success event → NotificationService sends in-app notifications
+        try {
+            PaymentEventDTO event = new PaymentEventDTO(
+                    payment.getId(), payment.getInvestorId(), payment.getFounderId(),
+                    payment.getStartupId(), payment.getStartupName(), payment.getInvestorName(),
+                    payment.getAmount(), payment.getRazorpayPaymentId(), "SUCCESS"
+            );
+            rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_SUCCESS_KEY, event);
+        } catch (Exception e) {
+            log.warn("RabbitMQ unavailable: {}", e.getMessage());
+        }
+
+        // Send emails
+        try {
+            emailService.sendPaymentSuccessEmailToInvestor(payment);
+            emailService.sendPaymentReceivedEmailToFounder(payment);
+        } catch (Exception e) {
+            log.warn("Email sending failed: {}", e.getMessage());
+        }
+
+        response.put("success", true);
+        response.put("message", "Investment accepted successfully");
+        return response;
+    }
+
+    // Founder rejects the investment
+    public Map<String, Object> rejectPayment(Long paymentId) {
+        Map<String, Object> response = new HashMap<>();
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+        payment.setStatus(Payment.PaymentStatus.REJECTED);
+        payment.setUpdatedAt(LocalDateTime.now());
+        paymentRepository.save(payment);
+        log.info("Founder rejected payment. paymentId={}", paymentId);
+
+        response.put("success", true);
+        response.put("message", "Investment rejected");
         return response;
     }
 

@@ -4,24 +4,41 @@ import { Search, DollarSign, TrendingUp, ArrowRight, CheckCircle, Clock, XCircle
 import Layout from '../../components/Layout';
 import useAuth from '../../hooks/useAuth';
 import { getAllStartups } from '../../api/startupApi';
-import { getMyInvestments } from '../../api/investmentApi';
+import { getPaymentsByInvestor } from '../../api/paymentApi';
 
 const InvestorDashboard = () => {
-  const { userId, user } = useAuth();
+  const { user } = useAuth();
   const [startups, setStartups] = useState([]);
-  const [investments, setInvestments] = useState([]);
+  const [payments, setPayments] = useState([]);
 
   useEffect(() => {
     getAllStartups().then(res => setStartups(res.data?.content || [])).catch(() => {});
-    if (userId) getMyInvestments(userId).then(res => setInvestments(res.data || [])).catch(() => {});
-  }, [userId]);
+    if (user?.userId) {
+      getPaymentsByInvestor(user.userId).then(res => setPayments(res.data || [])).catch(() => {});
+    }
+  }, [user]);
 
-  const totalInvested = investments.reduce((sum, inv) => sum + Number(inv.amount), 0);
+  const confirmed = payments.filter(p => p.status === 'SUCCESS');
+  const totalInvested = confirmed.reduce((sum, p) => sum + Number(p.amount), 0);
 
   const statusIcon = (status) => {
-    if (status === 'APPROVED') return <CheckCircle size={14} className="text-green-400" />;
+    if (status === 'SUCCESS') return <CheckCircle size={14} className="text-green-400" />;
     if (status === 'REJECTED') return <XCircle size={14} className="text-red-400" />;
-    return <Clock size={14} className="text-yellow-400" />;
+    if (status === 'AWAITING_APPROVAL') return <Clock size={14} className="text-yellow-400" />;
+    return <Clock size={14} className="text-gray-400" />;
+  };
+
+  const statusBadge = (status) => {
+    if (status === 'SUCCESS') return 'badge-green';
+    if (status === 'REJECTED') return 'badge-red';
+    if (status === 'AWAITING_APPROVAL') return 'badge-yellow';
+    return 'badge-yellow';
+  };
+
+  const statusLabel = (status) => {
+    if (status === 'SUCCESS') return 'CONFIRMED';
+    if (status === 'AWAITING_APPROVAL') return 'PENDING';
+    return status;
   };
 
   return (
@@ -58,7 +75,7 @@ const InvestorDashboard = () => {
                 <DollarSign size={18} className="text-green-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-white">{investments.length}</p>
+            <p className="text-3xl font-bold text-white">{payments.length}</p>
           </div>
           <div className="stat-card">
             <div className="flex items-center justify-between">
@@ -67,7 +84,7 @@ const InvestorDashboard = () => {
                 <TrendingUp size={18} className="text-yellow-400" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-white">${totalInvested.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-white">₹{totalInvested.toLocaleString()}</p>
           </div>
         </div>
 
@@ -80,7 +97,7 @@ const InvestorDashboard = () => {
             </Link>
           </div>
 
-          {investments.length === 0 ? (
+          {payments.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center mx-auto mb-4">
                 <TrendingUp size={24} className="text-gray-500" />
@@ -90,21 +107,21 @@ const InvestorDashboard = () => {
             </div>
           ) : (
             <div className="divide-y divide-dark-500">
-              {investments.slice(0, 5).map((inv) => (
-                <div key={inv.id} className="py-3.5 flex items-center justify-between">
+              {payments.slice(0, 5).map((payment) => (
+                <div key={payment.id} className="py-3.5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {statusIcon(inv.status)}
+                    {statusIcon(payment.status)}
                     <div>
-                      <p className="font-medium text-gray-100">Startup #{inv.startupId}</p>
-                      <p className="text-gray-500 text-sm">${Number(inv.amount).toLocaleString()}</p>
+                      <p className="font-medium text-gray-100">{payment.startupName}</p>
+                      <p className="text-gray-500 text-sm">
+                        {new Date(payment.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
                     </div>
                   </div>
-                  <span className={
-                    inv.status === 'APPROVED' ? 'badge-green' :
-                    inv.status === 'REJECTED' ? 'badge-red' : 'badge-yellow'
-                  }>
-                    {inv.status}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <p className="font-semibold text-white">₹{Number(payment.amount).toLocaleString()}</p>
+                    <span className={statusBadge(payment.status)}>{statusLabel(payment.status)}</span>
+                  </div>
                 </div>
               ))}
             </div>

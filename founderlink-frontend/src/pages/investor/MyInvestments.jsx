@@ -1,40 +1,42 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { DollarSign, TrendingUp, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, CheckCircle, Clock, CreditCard, XCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import useAuth from '../../hooks/useAuth';
-import { getMyInvestments } from '../../api/investmentApi';
-import { getStartupById } from '../../api/startupApi';
+import { getPaymentsByInvestor } from '../../api/paymentApi';
 
 const MyInvestments = () => {
-  const { userId } = useAuth();
-  const [investments, setInvestments] = useState([]);
-  const [startupMap, setStartupMap]   = useState({});
+  const { user } = useAuth();
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!userId) return;
-    getMyInvestments(userId)
-      .then(res => {
-        const list = res.data || [];
-        setInvestments(list);
-        const uniqueIds = [...new Set(list.map(i => i.startupId))];
-        Promise.all(uniqueIds.map(id => getStartupById(id).then(r => [id, r.data]).catch(() => [id, null])))
-          .then(entries => setStartupMap(Object.fromEntries(entries)));
-      })
+    if (!user?.userId) return;
+    getPaymentsByInvestor(user.userId)
+      .then(res => setPayments(res.data || []))
       .catch(() => toast.error('Failed to load investments'))
       .finally(() => setLoading(false));
-  }, [userId]);
+  }, [user]);
 
-  const total = investments.reduce((sum, inv) => sum + Number(inv.amount), 0);
-  const approved = investments.filter(i => i.status === 'APPROVED');
-  const pending = investments.filter(i => i.status === 'PENDING');
+  const successful = payments.filter(p => p.status === 'SUCCESS');
+  const totalInvested = successful.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  const statusBadge = (status) => {
+    if (status === 'SUCCESS') return 'badge-green';
+    if (status === 'FAILED' || status === 'REJECTED') return 'badge-red';
+    return 'badge-yellow';
+  };
+
+  const statusLabel = (status) => {
+    if (status === 'SUCCESS') return 'CONFIRMED';
+    if (status === 'AWAITING_APPROVAL') return 'PENDING APPROVAL';
+    return status;
+  };
 
   const statusIcon = (status) => {
-    if (status === 'APPROVED') return <CheckCircle size={15} className="text-green-400" />;
+    if (status === 'SUCCESS') return <CheckCircle size={15} className="text-green-400" />;
     if (status === 'REJECTED') return <XCircle size={15} className="text-red-400" />;
-    if (status === 'COMPLETED') return <CheckCircle size={15} className="text-blue-400" />;
     return <Clock size={15} className="text-yellow-400" />;
   };
 
@@ -43,7 +45,7 @@ const MyInvestments = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white">My Investments</h1>
-          <p className="text-gray-400 text-sm mt-1">Track all your investment activity</p>
+          <p className="text-gray-400 text-sm mt-1">Track all your investment payments</p>
         </div>
 
         {/* Summary cards */}
@@ -55,25 +57,25 @@ const MyInvestments = () => {
                 <TrendingUp size={18} className="text-accent-light" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-white">${total.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-white">₹{totalInvested.toLocaleString()}</p>
           </div>
           <div className="stat-card">
             <div className="flex items-center justify-between">
-              <p className="text-gray-400 text-sm">Approved</p>
+              <p className="text-gray-400 text-sm">Confirmed</p>
               <div className="w-9 h-9 rounded-lg bg-green-500/15 flex items-center justify-center">
                 <CheckCircle size={18} className="text-green-400" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-white">{approved.length}</p>
+            <p className="text-2xl font-bold text-white">{successful.length}</p>
           </div>
           <div className="stat-card">
             <div className="flex items-center justify-between">
-              <p className="text-gray-400 text-sm">Pending</p>
-              <div className="w-9 h-9 rounded-lg bg-yellow-500/15 flex items-center justify-center">
-                <Clock size={18} className="text-yellow-400" />
+              <p className="text-gray-400 text-sm">Total Transactions</p>
+              <div className="w-9 h-9 rounded-lg bg-dark-700 flex items-center justify-center">
+                <CreditCard size={18} className="text-gray-400" />
               </div>
             </div>
-            <p className="text-2xl font-bold text-white">{pending.length}</p>
+            <p className="text-2xl font-bold text-white">{payments.length}</p>
           </div>
         </div>
 
@@ -82,7 +84,7 @@ const MyInvestments = () => {
           <div className="space-y-3">
             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-dark-800 rounded-xl animate-pulse border border-dark-500" />)}
           </div>
-        ) : investments.length === 0 ? (
+        ) : payments.length === 0 ? (
           <div className="card text-center py-14">
             <div className="w-14 h-14 rounded-full bg-dark-700 flex items-center justify-center mx-auto mb-4">
               <DollarSign size={24} className="text-gray-500" />
@@ -94,28 +96,21 @@ const MyInvestments = () => {
         ) : (
           <div className="card">
             <div className="divide-y divide-dark-500">
-              {investments.map((inv) => (
-                <div key={inv.id} className="py-4 flex items-center justify-between">
+              {payments.map((payment) => (
+                <div key={payment.id} className="py-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {statusIcon(inv.status)}
+                    {statusIcon(payment.status)}
                     <div>
-                      <p className="font-semibold text-gray-100">
-                        {startupMap[inv.startupId]?.name || `Startup #${inv.startupId}`}
-                      </p>
+                      <p className="font-semibold text-gray-100">{payment.startupName}</p>
                       <p className="text-gray-500 text-xs">
-                        {startupMap[inv.startupId]?.industry ? `${startupMap[inv.startupId].industry} · ` : ''}{new Date(inv.createdAt).toLocaleDateString()}
+                        {new Date(payment.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {payment.razorpayPaymentId && <span className="ml-2 font-mono text-gray-600">{payment.razorpayPaymentId}</span>}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <p className="font-bold text-white">${Number(inv.amount).toLocaleString()}</p>
-                    <span className={
-                      inv.status === 'APPROVED' ? 'badge-green' :
-                      inv.status === 'REJECTED' ? 'badge-red' :
-                      inv.status === 'COMPLETED' ? 'badge-blue' : 'badge-yellow'
-                    }>
-                      {inv.status}
-                    </span>
+                    <p className="font-bold text-white">₹{Number(payment.amount).toLocaleString()}</p>
+                    <span className={statusBadge(payment.status)}>{statusLabel(payment.status)}</span>
                   </div>
                 </div>
               ))}

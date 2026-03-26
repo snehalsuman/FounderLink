@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -67,5 +69,35 @@ public class NotificationEventListener {
                 "You have been invited to join a startup team as " + event.getRole(),
                 NotificationType.TEAM_INVITE_SENT
         );
+    }
+
+    // Use Map<String, Object> to avoid TypeId deserialization mismatch between PaymentService and NotificationService
+    @RabbitListener(queues = "${rabbitmq.queue.payment-success}")
+    public void handlePaymentSuccess(Map<String, Object> payload) {
+        try {
+            Long investorId = payload.get("investorId") != null ? ((Number) payload.get("investorId")).longValue() : null;
+            Long founderId  = payload.get("founderId")  != null ? ((Number) payload.get("founderId")).longValue()  : null;
+            String startupName  = (String) payload.get("startupName");
+            String investorName = (String) payload.get("investorName");
+            Number amount       = payload.get("amount") != null ? (Number) payload.get("amount") : 0;
+            log.info("Received payment success event — investorId={} founderId={} startup={}", investorId, founderId, startupName);
+
+            if (investorId != null) {
+                notificationService.createNotification(
+                        investorId,
+                        "Your payment of ₹" + amount.longValue() + " for " + startupName + " was accepted by the founder!",
+                        NotificationType.PAYMENT_SUCCESS
+                );
+            }
+            if (founderId != null) {
+                notificationService.createNotification(
+                        founderId,
+                        investorName + " has invested ₹" + amount.longValue() + " in " + startupName + ". Investment confirmed.",
+                        NotificationType.PAYMENT_SUCCESS
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to process payment success event: {}", e.getMessage());
+        }
     }
 }

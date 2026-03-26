@@ -11,8 +11,8 @@ const PaymentHistory = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.id) {
-      getPaymentsByInvestor(user.id)
+    if (user?.userId) {
+      getPaymentsByInvestor(user.userId)
         .then(res => setPayments(res.data || []))
         .catch(() => toast.error('Failed to load payment history'))
         .finally(() => setLoading(false));

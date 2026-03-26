@@ -23,7 +23,7 @@ public class EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(fromEmail); // replace with investor email lookup if available
-            message.setSubject("✅ Payment Successful - FounderLink");
+            message.setSubject(" Payment Successful - FounderLink");
             message.setText(
                 "Dear " + payment.getInvestorName() + ",\n\n" +
                 "Your investment payment has been processed successfully!\n\n" +

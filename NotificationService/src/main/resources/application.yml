@@ -30,6 +30,7 @@ rabbitmq:
     team-invite-sent: team.invite.sent.queue
     startup-created: startup.created.queue
     startup-rejected: startup.rejected.queue
+    payment-success: payment.success.queue
 
 management:
   metrics:

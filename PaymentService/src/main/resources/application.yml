@@ -6,8 +6,8 @@ spring:
     name: payment-service
   datasource:
     url: jdbc:postgresql://localhost:5432/paymentdb
-    username: postgres
-    password: postgres
+    username: snehalsuman
+    password: Snehal@123
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -21,6 +21,17 @@ spring:
     port: 5672
     username: guest
     password: guest
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SPRING_MAIL_USERNAME:snehals0203@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:uzte iyhv uryb mhdh}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 eureka:
   client:
@@ -29,21 +40,9 @@ eureka:
   instance:
     prefer-ip-address: true
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${SPRING_MAIL_USERNAME}
-    password: ${SPRING_MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-
 razorpay:
-  key-id: ${RAZORPAY_KEY_ID}
-  key-secret: ${RAZORPAY_KEY_SECRET}
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_SVoYe0oLVVgMeE}
+  key-secret: ${RAZORPAY_KEY_SECRET:QjpLmGe510u7BIEma6FAt7fb}
 
 management:
   endpoints:

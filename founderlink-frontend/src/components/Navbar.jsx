@@ -1,14 +1,30 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Bell, MessageSquare, LogOut, User } from 'lucide-react';
 import { logout } from '../store/slices/authSlice';
+import { setUnreadCount } from '../store/slices/notificationSlice';
+import { getUnreadNotifications } from '../api/notificationApi';
 import useAuth from '../hooks/useAuth';
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, isFounder, isInvestor, isCoFounder } = useAuth();
+  const { user, userId, isFounder, isInvestor, isCoFounder } = useAuth();
   const unreadCount = useSelector((s) => s.notifications.unreadCount);
+
+  // Poll unread count every 30 seconds
+  useEffect(() => {
+    if (!userId) return;
+    const fetchUnread = () => {
+      getUnreadNotifications(userId)
+        .then(res => dispatch(setUnreadCount((res.data?.data || []).length)))
+        .catch(() => {});
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [userId, dispatch]);
 
   const handleLogout = () => {
     dispatch(logout());

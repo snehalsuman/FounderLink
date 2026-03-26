@@ -10,11 +10,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String PAYMENT_EXCHANGE = "payment.exchange";
+    public static final String PAYMENT_EXCHANGE = "founderlink.exchange";
     public static final String PAYMENT_SUCCESS_QUEUE = "payment.success.queue";
     public static final String PAYMENT_FAILED_QUEUE = "payment.failed.queue";
     public static final String PAYMENT_SUCCESS_KEY = "payment.success";
     public static final String PAYMENT_FAILED_KEY = "payment.failed";
+    public static final String PAYMENT_PENDING_KEY = "payment.pending";
 
     @Bean
     public TopicExchange paymentExchange() {

@@ -41,7 +41,7 @@ const StartupDetail = () => {
       if (!loaded) { toast.error('Failed to load payment gateway'); setPaymentLoading(false); return; }
 
       const orderRes = await createOrder({
-        investorId: user?.id,
+        investorId: user?.userId,
         founderId: startup?.founderId,
         startupId: parseInt(id),
         startupName: startup?.name,

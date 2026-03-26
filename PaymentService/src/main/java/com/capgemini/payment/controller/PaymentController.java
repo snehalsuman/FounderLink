@@ -35,6 +35,24 @@ public class PaymentController {
         return ResponseEntity.ok(response);
     }
 
+    @PutMapping("/{paymentId}/accept")
+    public ResponseEntity<Map<String, Object>> acceptPayment(@PathVariable Long paymentId) {
+        try {
+            return ResponseEntity.ok(paymentService.acceptPayment(paymentId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{paymentId}/reject")
+    public ResponseEntity<Map<String, Object>> rejectPayment(@PathVariable Long paymentId) {
+        try {
+            return ResponseEntity.ok(paymentService.rejectPayment(paymentId));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @GetMapping("/investor/{investorId}")
     public ResponseEntity<List<Payment>> getPaymentsByInvestor(@PathVariable Long investorId) {
         return ResponseEntity.ok(paymentService.getPaymentsByInvestor(investorId));

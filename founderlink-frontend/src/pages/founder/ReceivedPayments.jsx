@@ -11,8 +11,8 @@ const ReceivedPayments = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.id) {
-      getPaymentsByFounder(user.id)
+    if (user?.userId) {
+      getPaymentsByFounder(user.userId)
         .then(res => setPayments(res.data || []))
         .catch(() => toast.error('Failed to load payments'))
         .finally(() => setLoading(false));
@@ -24,6 +24,11 @@ const ReceivedPayments = () => {
     .reduce((sum, p) => sum + Number(p.amount), 0);
 
   const uniqueInvestors = new Set(payments.filter(p => p.status === 'SUCCESS').map(p => p.investorId)).size;
+
+  const statusLabel = (status) => {
+    if (status === 'AWAITING_APPROVAL') return 'PENDING';
+    return status;
+  };
 
   return (
     <Layout>
@@ -77,7 +82,7 @@ const ReceivedPayments = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-green-400">+₹{Number(payment.amount).toLocaleString()}</p>
-                    <span className={payment.status === 'SUCCESS' ? 'badge-green' : 'badge-yellow'}>{payment.status}</span>
+                    <span className={payment.status === 'SUCCESS' ? 'badge-green' : payment.status === 'REJECTED' ? 'badge-red' : 'badge-yellow'}>{statusLabel(payment.status)}</span>
                   </div>
                 </div>
               ))}

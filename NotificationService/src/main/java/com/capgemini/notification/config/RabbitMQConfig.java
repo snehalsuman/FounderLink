@@ -30,6 +30,9 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.startup-rejected}")
     private String startupRejectedQueue;
 
+    @Value("${rabbitmq.queue.payment-success}")
+    private String paymentSuccessQueue;
+
     @Bean
     public TopicExchange founderLinkExchange() {
         return new TopicExchange(exchange);
@@ -61,6 +64,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue paymentSuccessQueue() {
+        return QueueBuilder.durable(paymentSuccessQueue).build();
+    }
+
+    @Bean
     public Binding investmentCreatedBinding() {
         return BindingBuilder.bind(investmentCreatedQueue()).to(founderLinkExchange()).with("investment.created");
     }
@@ -83,6 +91,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding startupRejectedBinding() {
         return BindingBuilder.bind(startupRejectedQueue()).to(founderLinkExchange()).with("startup.rejected");
+    }
+
+    @Bean
+    public Binding paymentSuccessBinding() {
+        return BindingBuilder.bind(paymentSuccessQueue()).to(founderLinkExchange()).with("payment.success");
     }
 
     @Bean
