@@ -24,10 +24,13 @@ api.interceptors.request.use((config) => {
 });
 
 // Only clear session and redirect if the token is actually expired
+// Never intercept 401s from the auth endpoints themselves
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url || '';
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh');
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       const token = localStorage.getItem('token');
       if (!token || isTokenExpired(token)) {
         localStorage.clear();
