@@ -19,6 +19,8 @@ import InvestorDashboard from './pages/investor/InvestorDashboard';
 import BrowseStartups from './pages/investor/BrowseStartups';
 import StartupDetail from './pages/investor/StartupDetail';
 import MyInvestments from './pages/investor/MyInvestments';
+import PaymentHistory from './pages/investor/PaymentHistory';
+import ReceivedPayments from './pages/founder/ReceivedPayments';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Notifications from './pages/common/Notifications';
 import Messages from './pages/common/Messages';
@@ -44,6 +46,7 @@ function App() {
           <Route path="/founder/startups/:id/edit" element={<ProtectedRoute allowedRoles={['ROLE_FOUNDER']}><EditStartup /></ProtectedRoute>} />
           <Route path="/founder/team/:startupId" element={<ProtectedRoute allowedRoles={['ROLE_FOUNDER']}><TeamManagement /></ProtectedRoute>} />
           <Route path="/founder/investments" element={<ProtectedRoute allowedRoles={['ROLE_FOUNDER']}><FounderInvestments /></ProtectedRoute>} />
+          <Route path="/founder/payments" element={<ProtectedRoute allowedRoles={['ROLE_FOUNDER']}><ReceivedPayments /></ProtectedRoute>} />
 
           {/* Co-Founder — ROLE_COFOUNDER only */}
           <Route path="/cofounder/dashboard" element={<ProtectedRoute allowedRoles={['ROLE_COFOUNDER']}><CoFounderDashboard /></ProtectedRoute>} />
@@ -56,6 +59,7 @@ function App() {
           <Route path="/investor/startups" element={<ProtectedRoute allowedRoles={['ROLE_INVESTOR']}><BrowseStartups /></ProtectedRoute>} />
           <Route path="/investor/startups/:id" element={<ProtectedRoute allowedRoles={['ROLE_INVESTOR']}><StartupDetail /></ProtectedRoute>} />
           <Route path="/investor/investments" element={<ProtectedRoute allowedRoles={['ROLE_INVESTOR']}><MyInvestments /></ProtectedRoute>} />
+          <Route path="/investor/payments" element={<ProtectedRoute allowedRoles={['ROLE_INVESTOR']}><PaymentHistory /></ProtectedRoute>} />
 
           {/* Admin */}
           <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['ROLE_ADMIN']}><AdminDashboard /></ProtectedRoute>} />

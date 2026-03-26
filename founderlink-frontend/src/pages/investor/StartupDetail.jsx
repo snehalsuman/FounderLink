@@ -1,34 +1,97 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { MapPin, TrendingUp, DollarSign, Heart, ArrowLeft, Zap, CheckCircle } from 'lucide-react';
+import { MapPin, TrendingUp, DollarSign, Heart, ArrowLeft, Zap, CheckCircle, CreditCard } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import useAuth from '../../hooks/useAuth';
 import { getStartupById, followStartup } from '../../api/startupApi';
-import { createInvestment, getInvestmentsByStartup } from '../../api/investmentApi';
+import { getInvestmentsByStartup } from '../../api/investmentApi';
+import { createOrder, verifyPayment } from '../../api/paymentApi';
 
 const StartupDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isInvestor } = useAuth();
+  const { isInvestor, user } = useAuth();
   const [startup, setStartup] = useState(null);
   const [investments, setInvestments] = useState([]);
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm();
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
     getStartupById(id).then(res => setStartup(res.data)).catch(() => toast.error('Failed to load'));
     getInvestmentsByStartup(id).then(res => setInvestments(res.data || [])).catch(() => {});
   }, [id]);
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) { resolve(true); return; }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const onInvest = async (data) => {
+    setPaymentLoading(true);
     try {
-      await createInvestment({ startupId: parseInt(id), amount: parseFloat(data.amount) });
-      toast.success('Investment submitted!');
-      reset();
-      getInvestmentsByStartup(id).then(res => setInvestments(res.data || []));
+      const loaded = await loadRazorpayScript();
+      if (!loaded) { toast.error('Failed to load payment gateway'); setPaymentLoading(false); return; }
+
+      const orderRes = await createOrder({
+        investorId: user?.id,
+        founderId: startup?.founderId,
+        startupId: parseInt(id),
+        startupName: startup?.name,
+        investorName: user?.name || user?.email,
+        amount: parseFloat(data.amount),
+      });
+
+      const { orderId, amount, currency, keyId } = orderRes.data;
+
+      const options = {
+        key: keyId,
+        amount,
+        currency,
+        name: 'FounderLink',
+        description: `Investment in ${startup.name}`,
+        order_id: orderId,
+        handler: async (response) => {
+          try {
+            const verifyRes = await verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            if (verifyRes.data.success) {
+              toast.success('🎉 Payment successful! Investment confirmed.');
+              reset();
+              getInvestmentsByStartup(id).then(res => setInvestments(res.data || []));
+            } else {
+              toast.error('Payment verification failed');
+            }
+          } catch {
+            toast.error('Error verifying payment');
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+        },
+        theme: { color: '#6366f1' },
+        modal: {
+          ondismiss: () => toast('Payment cancelled', { icon: '⚠️' }),
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Investment failed');
+      toast.error(err.response?.data?.error || 'Failed to initiate payment');
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -55,7 +118,7 @@ const StartupDetail = () => {
   }
 
   const totalRaised = investments
-    .filter(i => i.status === 'APPROVED')
+    .filter(i => i.status === 'APPROVED' || i.status === 'COMPLETED')
     .reduce((sum, i) => sum + Number(i.amount), 0);
   const progress = startup.fundingGoal ? Math.min((totalRaised / startup.fundingGoal) * 100, 100) : 0;
 
@@ -90,7 +153,7 @@ const StartupDetail = () => {
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-400">Funding Progress</span>
               <span className="text-sm font-semibold text-white">
-                ${totalRaised.toLocaleString()} / ${Number(startup.fundingGoal).toLocaleString()}
+                ₹{totalRaised.toLocaleString()} / ₹{Number(startup.fundingGoal).toLocaleString()}
               </span>
             </div>
             <div className="h-2 bg-dark-500 rounded-full overflow-hidden">
@@ -117,25 +180,34 @@ const StartupDetail = () => {
 
         {/* Invest card — investors only */}
         {isInvestor && (
-          <div className="card">
+          <div className="card border border-accent/20">
             <h2 className="font-semibold text-white mb-1 flex items-center gap-2">
               <Zap size={16} className="text-accent-light" /> Invest in {startup.name}
             </h2>
-            <p className="text-gray-500 text-sm mb-4">Submit your investment offer for the founder to review</p>
+            <p className="text-gray-500 text-sm mb-4">Secure payment via Razorpay — you'll receive an email confirmation</p>
             <form onSubmit={handleSubmit(onInvest)} className="flex gap-3">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₹</span>
                 <input
                   type="number"
                   className="input-field pl-7"
                   placeholder="Enter amount"
                   {...register('amount', { required: true, min: 1 })}
                 />
+                {errors.amount && <p className="text-red-400 text-xs mt-1">Enter a valid amount</p>}
               </div>
-              <button type="submit" disabled={isSubmitting} className="btn-primary whitespace-nowrap">
-                {isSubmitting ? 'Submitting...' : 'Invest Now'}
+              <button
+                type="submit"
+                disabled={paymentLoading}
+                className="btn-primary whitespace-nowrap flex items-center gap-2"
+              >
+                <CreditCard size={15} />
+                {paymentLoading ? 'Processing...' : 'Pay & Invest'}
               </button>
             </form>
+            <p className="text-xs text-gray-600 mt-3 flex items-center gap-1">
+              🔒 Powered by Razorpay — test mode active
+            </p>
           </div>
         )}
 
@@ -152,7 +224,7 @@ const StartupDetail = () => {
                     <div className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center">
                       <DollarSign size={14} className="text-green-400" />
                     </div>
-                    <p className="text-sm font-medium text-gray-200">${Number(inv.amount).toLocaleString()}</p>
+                    <p className="text-sm font-medium text-gray-200">₹{Number(inv.amount).toLocaleString()}</p>
                   </div>
                   <span className={
                     inv.status === 'APPROVED' ? 'badge-green' :

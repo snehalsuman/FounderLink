@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Rocket, Search, DollarSign, ShieldCheck, TrendingUp, Mail } from 'lucide-react';
+import { LayoutDashboard, Rocket, Search, DollarSign, ShieldCheck, TrendingUp, Mail, CreditCard } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
 
 const Sidebar = () => {
@@ -9,6 +9,7 @@ const Sidebar = () => {
     { to: '/founder/dashboard',   icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
     { to: '/founder/startups',    icon: <Rocket size={18} />,          label: 'My Startups' },
     { to: '/founder/investments', icon: <DollarSign size={18} />,      label: 'Investment Requests' },
+    { to: '/founder/payments',    icon: <CreditCard size={18} />,      label: 'Received Payments' },
   ];
 
   const coFounderLinks = [
@@ -21,6 +22,7 @@ const Sidebar = () => {
     { to: '/investor/dashboard',   icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
     { to: '/investor/startups',    icon: <Search size={18} />,          label: 'Browse Startups' },
     { to: '/investor/investments', icon: <TrendingUp size={18} />,      label: 'My Investments' },
+    { to: '/investor/payments',   icon: <CreditCard size={18} />,      label: 'Payment History' },
   ];
 
   const adminLinks = [
