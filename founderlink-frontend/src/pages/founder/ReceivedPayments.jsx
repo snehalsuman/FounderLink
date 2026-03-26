@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IndianRupee, TrendingUp, Users } from 'lucide-react';
+import { IndianRupee, TrendingUp } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import useAuth from '../../hooks/useAuth';
