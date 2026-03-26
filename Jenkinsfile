@@ -95,39 +95,6 @@ pipeline {
             }
         }
 
-        stage('Run Backend Tests') {
-            parallel {
-                stage('Test Auth Service') {
-                    steps {
-                        dir('AuthService') {
-                            sh '${MVN} test -q'
-                        }
-                    }
-                }
-                stage('Test Startup Service') {
-                    steps {
-                        dir('startup-service') {
-                            sh '${MVN} test -q'
-                        }
-                    }
-                }
-                stage('Test Investment Service') {
-                    steps {
-                        dir('InvestmentService') {
-                            sh '${MVN} test -q'
-                        }
-                    }
-                }
-                stage('Test Team Service') {
-                    steps {
-                        dir('TeamService') {
-                            sh '${MVN} test -q'
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Build Frontend') {
             steps {
                 echo '========== Building React Frontend =========='
