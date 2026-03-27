@@ -177,7 +177,10 @@ public class StartupServiceImpl implements StartupService {
     }
 
     @Override
-    @CacheEvict(value = "startups", key = "#id")
+    @Caching(evict = {
+        @CacheEvict(value = "startups", key = "#id"),
+        @CacheEvict(value = "startupsByFounder", allEntries = true)
+    })
     public StartupResponse approveStartup(Long id) {
         Startup startup = startupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Startup not found with ID: " + id));
@@ -190,7 +193,10 @@ public class StartupServiceImpl implements StartupService {
     }
 
     @Override
-    @CacheEvict(value = "startups", key = "#id")
+    @Caching(evict = {
+        @CacheEvict(value = "startups", key = "#id"),
+        @CacheEvict(value = "startupsByFounder", allEntries = true)
+    })
     public StartupResponse rejectStartup(Long id) {
         Startup startup = startupRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Startup not found with ID: " + id));

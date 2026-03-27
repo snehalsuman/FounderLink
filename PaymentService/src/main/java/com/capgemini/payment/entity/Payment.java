@@ -33,6 +33,10 @@ public class Payment {
     private LocalDateTime updatedAt;
 
     public enum PaymentStatus {
-        PENDING, AWAITING_APPROVAL, SUCCESS, FAILED, REJECTED
+        PENDING,
+        AWAITING_APPROVAL,
+        SUCCESS,
+        FAILED,
+        REJECTED
     }
 }
