@@ -1,6 +1,7 @@
 package com.capgemini.authservice.controller;
 
-import com.capgemini.authservice.service.AuthService;
+import com.capgemini.authservice.mapper.AuthMapper;
+import com.capgemini.authservice.service.IAuthService;
 import com.capgemini.authservice.dto.ApiResponse;
 import com.capgemini.authservice.dto.AuthResponse;
 import com.capgemini.authservice.dto.LoginRequest;
@@ -23,8 +24,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthService authService;
+    private final IAuthService authService;
     private final UserRepository userRepository;
+    private final AuthMapper authMapper;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(@Valid @RequestBody RegisterRequest request) {
@@ -43,18 +45,7 @@ public class AuthController {
     @GetMapping("/users/{id}")
     public ResponseEntity<UserSummaryDto> getUserById(@PathVariable Long id) {
         return userRepository.findById(id)
-                .map(u -> {
-                    String role = u.getRoles().stream()
-                            .findFirst()
-                            .map(r -> r.getName())
-                            .orElse(null);
-                    return ResponseEntity.ok(UserSummaryDto.builder()
-                            .userId(u.getId())
-                            .name(u.getName())
-                            .email(u.getEmail())
-                            .role(role)
-                            .build());
-                })
+                .map(u -> ResponseEntity.ok(authMapper.toUserSummaryDto(u)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -62,12 +53,7 @@ public class AuthController {
     @GetMapping("/users/by-role")
     public ResponseEntity<List<UserSummaryDto>> getUsersByRole(@RequestParam String role) {
         List<UserSummaryDto> users = userRepository.findByRolesName(role).stream()
-                .map(u -> UserSummaryDto.builder()
-                        .userId(u.getId())
-                        .name(u.getName())
-                        .email(u.getEmail())
-                        .role(role)
-                        .build())
+                .map(authMapper::toUserSummaryDto)
                 .toList();
         return ResponseEntity.ok(users);
     }

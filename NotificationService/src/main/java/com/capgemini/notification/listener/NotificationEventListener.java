@@ -72,6 +72,35 @@ public class NotificationEventListener {
     }
 
     // Use Map<String, Object> to avoid TypeId deserialization mismatch between PaymentService and NotificationService
+    @RabbitListener(queues = "${rabbitmq.queue.payment-failed}")
+    public void handlePaymentFailed(Map<String, Object> payload) {
+        try {
+            Long investorId = payload.get("investorId") != null ? ((Number) payload.get("investorId")).longValue() : null;
+            Long founderId  = payload.get("founderId")  != null ? ((Number) payload.get("founderId")).longValue()  : null;
+            String startupName  = (String) payload.get("startupName");
+            String investorName = (String) payload.get("investorName");
+            Number amount       = payload.get("amount") != null ? (Number) payload.get("amount") : 0;
+            log.info("Received payment rejected event — investorId={} founderId={} startup={}", investorId, founderId, startupName);
+
+            if (investorId != null) {
+                notificationService.createNotification(
+                        investorId,
+                        "Your investment of ₹" + amount.longValue() + " in " + startupName + " was rejected by the founder. A refund has been initiated to your account.",
+                        NotificationType.PAYMENT_REJECTED
+                );
+            }
+            if (founderId != null) {
+                notificationService.createNotification(
+                        founderId,
+                        "You rejected the investment of ₹" + amount.longValue() + " from " + investorName + " for " + startupName + ". A refund has been issued to the investor.",
+                        NotificationType.PAYMENT_REJECTED
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to process payment rejected event: {}", e.getMessage());
+        }
+    }
+
     @RabbitListener(queues = "${rabbitmq.queue.payment-success}")
     public void handlePaymentSuccess(Map<String, Object> payload) {
         try {

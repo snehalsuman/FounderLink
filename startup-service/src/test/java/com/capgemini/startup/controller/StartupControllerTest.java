@@ -5,7 +5,8 @@ import com.capgemini.startup.dto.StartupResponse;
 import com.capgemini.startup.enums.StartupStage;
 import com.capgemini.startup.filter.JwtAuthenticationFilter;
 import com.capgemini.startup.filter.JwtUtil;
-import com.capgemini.startup.service.StartupService;
+import com.capgemini.startup.service.StartupCommandService;
+import com.capgemini.startup.service.StartupQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +53,10 @@ class StartupControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private StartupService startupService;
+    private StartupCommandService startupCommandService;
+
+    @MockitoBean
+    private StartupQueryService startupQueryService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -118,7 +122,7 @@ class StartupControllerTest {
     @Test
     void createStartup_withFounderRole_shouldReturn201() throws Exception {
         // given
-        when(startupService.createStartup(eq(1L), any(StartupRequest.class))).thenReturn(startupResponse);
+        when(startupCommandService.createStartup(eq(1L), any(StartupRequest.class))).thenReturn(startupResponse);
 
         // when / then
         mockMvc.perform(post("/startups")
@@ -141,7 +145,7 @@ class StartupControllerTest {
                         .content(objectMapper.writeValueAsString(startupRequest)))
                 .andExpect(status().isForbidden());
 
-        verify(startupService, never()).createStartup(any(), any());
+        verify(startupCommandService, never()).createStartup(any(), any());
     }
 
     @Test
@@ -153,7 +157,7 @@ class StartupControllerTest {
                         .content(objectMapper.writeValueAsString(startupRequest)))
                 .andExpect(status().isUnauthorized());
 
-        verify(startupService, never()).createStartup(any(), any());
+        verify(startupCommandService, never()).createStartup(any(), any());
     }
 
     // -----------------------------------------------------------------------
@@ -165,7 +169,7 @@ class StartupControllerTest {
         // given
         Page<StartupResponse> page = new PageImpl<>(
                 List.of(startupResponse), PageRequest.of(0, 10), 1);
-        when(startupService.getAllApprovedStartups(any())).thenReturn(page);
+        when(startupQueryService.getAllApprovedStartups(any())).thenReturn(page);
 
         // when / then
         mockMvc.perform(get("/startups")
@@ -181,7 +185,7 @@ class StartupControllerTest {
     @Test
     void getStartupById_shouldReturn200() throws Exception {
         // given
-        when(startupService.getStartupById(1L)).thenReturn(startupResponse);
+        when(startupQueryService.getStartupById(1L)).thenReturn(startupResponse);
 
         // when / then
         mockMvc.perform(get("/startups/1")
@@ -207,7 +211,7 @@ class StartupControllerTest {
                 .founderId(1L)
                 .isApproved(false)
                 .build();
-        when(startupService.updateStartup(eq(1L), eq(1L), any(StartupRequest.class))).thenReturn(updatedResponse);
+        when(startupCommandService.updateStartup(eq(1L), eq(1L), any(StartupRequest.class))).thenReturn(updatedResponse);
 
         // when / then
         mockMvc.perform(put("/startups/1")
@@ -226,7 +230,7 @@ class StartupControllerTest {
     @Test
     void deleteStartup_withFounderRole_shouldReturn200() throws Exception {
         // given
-        doNothing().when(startupService).deleteStartup(eq(1L), eq(1L), eq(false));
+        doNothing().when(startupCommandService).deleteStartup(eq(1L), eq(1L), eq(false));
 
         // when / then
         mockMvc.perform(delete("/startups/1")
@@ -243,7 +247,7 @@ class StartupControllerTest {
     @Test
     void followStartup_withInvestorRole_shouldReturn200() throws Exception {
         // given
-        doNothing().when(startupService).followStartup(eq(1L), eq(2L));
+        doNothing().when(startupCommandService).followStartup(eq(1L), eq(2L));
 
         // when / then
         mockMvc.perform(post("/startups/1/follow")
@@ -269,7 +273,7 @@ class StartupControllerTest {
                 .founderId(1L)
                 .isApproved(true)
                 .build();
-        when(startupService.approveStartup(1L)).thenReturn(approvedResponse);
+        when(startupCommandService.approveStartup(1L)).thenReturn(approvedResponse);
 
         // when / then
         mockMvc.perform(put("/startups/1/approve")
@@ -287,6 +291,6 @@ class StartupControllerTest {
                         .with(SecurityMockMvcRequestPostProcessors.csrf()))
                 .andExpect(status().isForbidden());
 
-        verify(startupService, never()).approveStartup(any());
+        verify(startupCommandService, never()).approveStartup(any());
     }
 }

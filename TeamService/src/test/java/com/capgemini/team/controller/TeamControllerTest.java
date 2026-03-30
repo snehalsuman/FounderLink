@@ -9,7 +9,8 @@ import com.capgemini.team.dto.RoleUpdateRequest;
 import com.capgemini.team.dto.TeamMemberResponse;
 import com.capgemini.team.enums.InvitationStatus;
 import com.capgemini.team.enums.TeamRole;
-import com.capgemini.team.service.TeamService;
+import com.capgemini.team.service.TeamCommandService;
+import com.capgemini.team.service.TeamQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +48,10 @@ class TeamControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private TeamService teamService;
+    private TeamCommandService teamCommandService;
+
+    @MockitoBean
+    private TeamQueryService teamQueryService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -100,7 +104,7 @@ class TeamControllerTest {
         // given
         UsernamePasswordAuthenticationToken founderAuth = new UsernamePasswordAuthenticationToken(
                 1L, null, List.of(new SimpleGrantedAuthority("ROLE_FOUNDER")));
-        when(teamService.inviteCoFounder(any(InvitationRequest.class), eq(1L)))
+        when(teamCommandService.inviteCoFounder(any(InvitationRequest.class), eq(1L)))
                 .thenReturn(sampleInvitationResponse);
 
         // when / then
@@ -148,7 +152,7 @@ class TeamControllerTest {
         // given
         UsernamePasswordAuthenticationToken userAuth = new UsernamePasswordAuthenticationToken(
                 2L, null, List.of(new SimpleGrantedAuthority("ROLE_INVESTOR")));
-        when(teamService.acceptInvitation(eq(50L), eq(2L))).thenReturn(sampleMemberResponse);
+        when(teamCommandService.acceptInvitation(eq(50L), eq(2L))).thenReturn(sampleMemberResponse);
 
         // when / then
         mockMvc.perform(post("/teams/join/50")
@@ -176,7 +180,7 @@ class TeamControllerTest {
                 .status(InvitationStatus.REJECTED)
                 .createdAt(LocalDateTime.now())
                 .build();
-        when(teamService.rejectInvitation(eq(50L), eq(2L))).thenReturn(rejectedResponse);
+        when(teamCommandService.rejectInvitation(eq(50L), eq(2L))).thenReturn(rejectedResponse);
 
         // when / then
         mockMvc.perform(put("/teams/reject/50")
@@ -205,7 +209,7 @@ class TeamControllerTest {
                 .role(TeamRole.CTO)
                 .joinedAt(LocalDateTime.now())
                 .build();
-        when(teamService.updateMemberRole(eq(200L), any(RoleUpdateRequest.class), eq(1L)))
+        when(teamCommandService.updateMemberRole(eq(200L), any(RoleUpdateRequest.class), eq(1L)))
                 .thenReturn(updatedMemberResponse);
 
         // when / then
@@ -227,7 +231,7 @@ class TeamControllerTest {
         // given
         UsernamePasswordAuthenticationToken userAuth = new UsernamePasswordAuthenticationToken(
                 1L, null, List.of(new SimpleGrantedAuthority("ROLE_FOUNDER")));
-        when(teamService.getTeamByStartup(10L)).thenReturn(List.of(sampleMemberResponse));
+        when(teamQueryService.getTeamByStartup(10L)).thenReturn(List.of(sampleMemberResponse));
 
         // when / then
         mockMvc.perform(get("/teams/startup/10")
@@ -245,7 +249,7 @@ class TeamControllerTest {
         // given
         UsernamePasswordAuthenticationToken userAuth = new UsernamePasswordAuthenticationToken(
                 2L, null, List.of(new SimpleGrantedAuthority("ROLE_INVESTOR")));
-        when(teamService.getMyInvitations(2L)).thenReturn(List.of(sampleInvitationResponse));
+        when(teamQueryService.getMyInvitations(2L)).thenReturn(List.of(sampleInvitationResponse));
 
         // when / then
         mockMvc.perform(get("/teams/invitations/my")

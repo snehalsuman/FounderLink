@@ -10,6 +10,7 @@ import com.capgemini.startup.enums.StartupStage;
 import com.capgemini.startup.exception.DuplicateResourceException;
 import com.capgemini.startup.exception.ResourceNotFoundException;
 import com.capgemini.startup.exception.UnauthorizedAccessException;
+import com.capgemini.startup.mapper.StartupMapper;
 import com.capgemini.startup.repository.StartupFollowerRepository;
 import com.capgemini.startup.repository.StartupRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -37,6 +40,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class StartupServiceTest {
 
     @Mock
@@ -47,6 +51,9 @@ class StartupServiceTest {
 
     @Mock
     private RabbitTemplate rabbitTemplate;
+
+    @Mock
+    private StartupMapper startupMapper;
 
     @InjectMocks
     private StartupServiceImpl startupService;
@@ -82,6 +89,19 @@ class StartupServiceTest {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+
+        // Default mapper stub
+        when(startupMapper.toResponse(any(Startup.class))).thenAnswer(inv -> {
+            Startup s = inv.getArgument(0);
+            return StartupResponse.builder()
+                    .id(s.getId()).name(s.getName()).description(s.getDescription())
+                    .industry(s.getIndustry()).problemStatement(s.getProblemStatement())
+                    .solution(s.getSolution()).fundingGoal(s.getFundingGoal())
+                    .stage(s.getStage()).location(s.getLocation())
+                    .founderId(s.getFounderId()).isApproved(s.getIsApproved())
+                    .isRejected(s.getIsRejected()).createdAt(s.getCreatedAt())
+                    .updatedAt(s.getUpdatedAt()).build();
+        });
     }
 
     // -----------------------------------------------------------------------

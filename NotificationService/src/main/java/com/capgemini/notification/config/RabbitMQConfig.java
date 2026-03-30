@@ -33,6 +33,9 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.payment-success}")
     private String paymentSuccessQueue;
 
+    @Value("${rabbitmq.queue.payment-failed}")
+    private String paymentFailedQueue;
+
     @Bean
     public TopicExchange founderLinkExchange() {
         return new TopicExchange(exchange);
@@ -69,6 +72,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue paymentFailedQueue() {
+        return QueueBuilder.durable(paymentFailedQueue).build();
+    }
+
+    @Bean
     public Binding investmentCreatedBinding() {
         return BindingBuilder.bind(investmentCreatedQueue()).to(founderLinkExchange()).with("investment.created");
     }
@@ -96,6 +104,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding paymentSuccessBinding() {
         return BindingBuilder.bind(paymentSuccessQueue()).to(founderLinkExchange()).with("payment.success");
+    }
+
+    @Bean
+    public Binding paymentFailedBinding() {
+        return BindingBuilder.bind(paymentFailedQueue()).to(founderLinkExchange()).with("payment.failed");
     }
 
     @Bean

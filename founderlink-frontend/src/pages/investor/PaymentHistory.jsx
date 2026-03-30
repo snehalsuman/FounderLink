@@ -25,13 +25,13 @@ const PaymentHistory = () => {
 
   const statusIcon = (status) => {
     if (status === 'SUCCESS') return <CheckCircle size={16} className="text-green-400" />;
-    if (status === 'FAILED') return <XCircle size={16} className="text-red-400" />;
+    if (status === 'FAILED' || status === 'REJECTED') return <XCircle size={16} className="text-red-400" />;
     return <Clock size={16} className="text-yellow-400" />;
   };
 
   const statusBadge = (status) => {
     if (status === 'SUCCESS') return 'badge-green';
-    if (status === 'FAILED') return 'badge-red';
+    if (status === 'FAILED' || status === 'REJECTED') return 'badge-red';
     return 'badge-yellow';
   };
 

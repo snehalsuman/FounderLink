@@ -5,6 +5,7 @@ import com.capgemini.user.dto.UserProfileResponse;
 import com.capgemini.user.entity.UserProfile;
 import com.capgemini.user.exception.DuplicateResourceException;
 import com.capgemini.user.exception.ResourceNotFoundException;
+import com.capgemini.user.mapper.UserProfileMapper;
 import com.capgemini.user.repository.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -24,10 +27,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserProfileServiceTest {
 
     @Mock
     private UserProfileRepository userProfileRepository;
+
+    @Mock
+    private UserProfileMapper userProfileMapper;
 
     @InjectMocks
     private UserProfileServiceImpl userProfileService;
@@ -96,6 +103,12 @@ class UserProfileServiceTest {
         given(userProfileRepository.existsByUserId(USER_ID)).willReturn(false);
         given(userProfileRepository.existsByEmail(request.getEmail())).willReturn(false);
         given(userProfileRepository.save(any(UserProfile.class))).willReturn(profile);
+        UserProfileResponse mapped = UserProfileResponse.builder()
+                .userId(USER_ID).name(profile.getName()).email(profile.getEmail())
+                .bio(profile.getBio()).skills(profile.getSkills())
+                .experience(profile.getExperience()).portfolioLinks(profile.getPortfolioLinks())
+                .build();
+        given(userProfileMapper.toResponse(profile)).willReturn(mapped);
 
         // when
         UserProfileResponse response = userProfileService.createProfile(USER_ID, request);
@@ -129,6 +142,9 @@ class UserProfileServiceTest {
     void getProfileByUserId_whenFound_shouldReturnUserProfileResponse() {
         // given
         given(userProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+        UserProfileResponse mapped = UserProfileResponse.builder()
+                .id(profile.getId()).userId(USER_ID).email(profile.getEmail()).build();
+        given(userProfileMapper.toResponse(profile)).willReturn(mapped);
 
         // when
         UserProfileResponse response = userProfileService.getProfileByUserId(USER_ID);
@@ -204,6 +220,9 @@ class UserProfileServiceTest {
         // email belongs to the same user — no conflict
         given(userProfileRepository.findByEmail(updateRequest.getEmail())).willReturn(Optional.of(profile));
         given(userProfileRepository.save(any(UserProfile.class))).willReturn(updatedProfile);
+        UserProfileResponse mapped = UserProfileResponse.builder()
+                .name("Alice Updated").bio("Updated bio").skills("Java, Kotlin").build();
+        given(userProfileMapper.toResponse(updatedProfile)).willReturn(mapped);
 
         // when
         UserProfileResponse response = userProfileService.updateProfile(USER_ID, updateRequest);

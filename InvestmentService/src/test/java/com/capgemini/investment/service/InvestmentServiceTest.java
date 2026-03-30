@@ -10,6 +10,7 @@ import com.capgemini.investment.exception.ServiceUnavailableException;
 import com.capgemini.investment.exception.UnauthorizedException;
 import com.capgemini.investment.feign.StartupClient;
 import com.capgemini.investment.feign.StartupDTO;
+import com.capgemini.investment.mapper.InvestmentMapper;
 import com.capgemini.investment.repository.InvestmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,9 @@ class InvestmentServiceTest {
     @Mock
     private org.springframework.cloud.client.circuitbreaker.CircuitBreaker circuitBreaker;
 
+    @Mock
+    private InvestmentMapper investmentMapper;
+
     @InjectMocks
     private InvestmentService investmentService;
 
@@ -90,6 +94,15 @@ class InvestmentServiceTest {
                 .startupId(10L)
                 .amount(new BigDecimal("50000.00"))
                 .build();
+
+        // Default mapper stub — returns a response matching the investment's fields
+        when(investmentMapper.toResponse(any(Investment.class))).thenAnswer(inv -> {
+            Investment i = inv.getArgument(0);
+            return InvestmentResponse.builder()
+                    .id(i.getId()).startupId(i.getStartupId()).investorId(i.getInvestorId())
+                    .amount(i.getAmount()).status(i.getStatus()).createdAt(i.getCreatedAt())
+                    .build();
+        });
     }
 
     // -------------------------------------------------------------------------

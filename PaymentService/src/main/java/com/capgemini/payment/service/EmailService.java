@@ -23,7 +23,7 @@ public class EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(fromEmail); // replace with investor email lookup if available
-            message.setSubject(" Payment Successful - FounderLink");
+            message.setSubject("sagaa Payment Successful - FounderLink");
             message.setText(
                 "Dear " + payment.getInvestorName() + ",\n\n" +
                 "Your investment payment has been processed successfully!\n\n" +
@@ -41,6 +41,33 @@ public class EmailService {
             log.info("Payment success email sent to investor: {}", payment.getInvestorName());
         } catch (Exception e) {
             log.error("Failed to send investor email: {}", e.getMessage());
+        }
+    }
+
+    public void sendPaymentRejectedEmailToInvestor(Payment payment) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(fromEmail); // replace with investor email lookup if available
+            message.setSubject("Investment Rejected - FounderLink");
+            message.setText(
+                "Dear " + payment.getInvestorName() + ",\n\n" +
+                "We regret to inform you that the founder has rejected your investment.\n" +
+                "A full refund has been initiated to your account.\n\n" +
+                "Payment Details:\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n" +
+                "Startup       : " + payment.getStartupName() + "\n" +
+                "Amount        : ₹" + payment.getAmount() + "\n" +
+                "Payment ID    : " + payment.getRazorpayPaymentId() + "\n" +
+                "Status        : REJECTED (Refund Initiated)\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "The refund will reflect in your account within 5-7 business days.\n\n" +
+                "Regards,\nFounderLink Team"
+            );
+            mailSender.send(message);
+            log.info("Payment rejection email sent to investor: {}", payment.getInvestorName());
+        } catch (Exception e) {
+            log.error("Failed to send investor rejection email: {}", e.getMessage());
         }
     }
 

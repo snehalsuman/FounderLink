@@ -3,7 +3,9 @@ package com.capgemini.payment.controller;
 import com.capgemini.payment.dto.CreateOrderRequest;
 import com.capgemini.payment.dto.VerifyPaymentRequest;
 import com.capgemini.payment.entity.Payment;
-import com.capgemini.payment.service.PaymentService;
+import com.capgemini.payment.saga.PaymentSaga;
+import com.capgemini.payment.saga.SagaOrchestrator;
+import com.capgemini.payment.service.IPaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +19,8 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class PaymentController {
 
-    private final PaymentService paymentService;
+    private final IPaymentService paymentService;
+    private final SagaOrchestrator sagaOrchestrator;
 
     @PostMapping("/create-order")
     public ResponseEntity<Map<String, Object>> createOrder(@RequestBody CreateOrderRequest request) {
@@ -66,5 +69,15 @@ public class PaymentController {
     @GetMapping("/startup/{startupId}")
     public ResponseEntity<List<Payment>> getPaymentsByStartup(@PathVariable Long startupId) {
         return ResponseEntity.ok(paymentService.getPaymentsByStartup(startupId));
+    }
+
+    // Returns current saga state for a payment — useful for debugging/monitoring
+    @GetMapping("/{paymentId}/saga")
+    public ResponseEntity<PaymentSaga> getSagaStatus(@PathVariable Long paymentId) {
+        try {
+            return ResponseEntity.ok(sagaOrchestrator.getSagaByPaymentId(paymentId));
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

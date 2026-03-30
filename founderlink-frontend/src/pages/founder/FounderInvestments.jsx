@@ -39,7 +39,7 @@ const FounderInvestments = () => {
     setActionLoading(paymentId + '_reject');
     try {
       await rejectPayment(paymentId);
-      toast.success('Investment rejected.');
+      toast.success('Investment rejected. Refund has been initiated to the investor.');
       load();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to reject');

@@ -4,6 +4,7 @@ import com.capgemini.authservice.entity.RoleEntity;
 import com.capgemini.authservice.entity.UserEntity;
 import com.capgemini.authservice.repository.RoleRepository;
 import com.capgemini.authservice.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,9 @@ public class DataSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.password}")
+    private String adminPassword;
 
     @Override
     public void run(String... args) {
@@ -38,7 +42,7 @@ public class DataSeeder implements CommandLineRunner {
             UserEntity admin = UserEntity.builder()
                     .name("Admin")
                     .email("admin@founderlink.com")
-                    .password(passwordEncoder.encode("Admin@123"))
+                    .password(passwordEncoder.encode(adminPassword))
                     .roles(Set.of(adminRole))
                     .build();
             userRepository.save(admin);

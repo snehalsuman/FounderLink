@@ -1,11 +1,10 @@
 package com.capgemini.payment.service;
 
-import com.capgemini.payment.config.RabbitMQConfig;
 import com.capgemini.payment.dto.CreateOrderRequest;
-import com.capgemini.payment.dto.PaymentEventDTO;
 import com.capgemini.payment.dto.VerifyPaymentRequest;
 import com.capgemini.payment.entity.Payment;
 import com.capgemini.payment.repository.PaymentRepository;
+import com.capgemini.payment.saga.SagaOrchestrator;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -13,7 +12,6 @@ import com.razorpay.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,12 +23,11 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentService {
+public class PaymentService implements IPaymentService {
 
     private final PaymentRepository paymentRepository;
     private final RazorpayClient razorpayClient;
-    private final RabbitTemplate rabbitTemplate;
-    private final EmailService emailService;
+    private final SagaOrchestrator sagaOrchestrator;
 
     @Value("${razorpay.key-id}")
     private String razorpayKeyId;
@@ -38,6 +35,9 @@ public class PaymentService {
     @Value("${razorpay.key-secret}")
     private String razorpayKeySecret;
 
+    // ── Step 1: Create Razorpay order ─────────────────────────────────────────
+
+    @Override
     public Map<String, Object> createOrder(CreateOrderRequest request) throws RazorpayException {
         int amountInPaise = (int) (request.getAmount() * 100);
 
@@ -57,7 +57,10 @@ public class PaymentService {
         payment.setInvestorName(request.getInvestorName());
         payment.setAmount(request.getAmount());
         payment.setStatus(Payment.PaymentStatus.PENDING);
-        paymentRepository.save(payment);
+        Payment saved = paymentRepository.save(payment);
+
+        // Saga Step 1: record saga start
+        sagaOrchestrator.startSaga(saved);
 
         Map<String, Object> response = new HashMap<>();
         response.put("orderId", razorpayOrder.get("id"));
@@ -67,10 +70,13 @@ public class PaymentService {
         return response;
     }
 
+    // ── Step 2: Verify Razorpay signature and capture payment ────────────────
+
+    @Override
     public Map<String, Object> verifyPayment(VerifyPaymentRequest request) {
         Map<String, Object> response = new HashMap<>();
 
-        // Step 1: Verify Razorpay signature
+        // Verify Razorpay signature
         boolean isValid;
         try {
             JSONObject attributes = new JSONObject();
@@ -85,11 +91,12 @@ public class PaymentService {
             return response;
         }
 
-        // Step 2: Find payment record
+        // Find payment record
         Payment payment;
         try {
             payment = paymentRepository.findByRazorpayOrderId(request.getRazorpayOrderId())
-                    .orElseThrow(() -> new RuntimeException("Payment record not found for order: " + request.getRazorpayOrderId()));
+                    .orElseThrow(() -> new RuntimeException(
+                            "Payment record not found for order: " + request.getRazorpayOrderId()));
         } catch (Exception e) {
             log.error("Payment lookup error: {}", e.getMessage());
             response.put("success", false);
@@ -97,27 +104,20 @@ public class PaymentService {
             return response;
         }
 
-        // Step 3: Razorpay verified — save as AWAITING_APPROVAL (founder must accept)
         if (isValid) {
             payment.setRazorpayPaymentId(request.getRazorpayPaymentId());
             payment.setRazorpaySignature(request.getRazorpaySignature());
             payment.setStatus(Payment.PaymentStatus.AWAITING_APPROVAL);
             payment.setUpdatedAt(LocalDateTime.now());
             paymentRepository.save(payment);
+
+            // Saga Step 2: payment captured
+            sagaOrchestrator.onPaymentCaptured(payment);
+
+            // Saga Step 3: notify founder and await approval
+            sagaOrchestrator.onAwaitingApproval(payment);
+
             log.info("Payment Razorpay-verified, awaiting founder approval. paymentId={}", payment.getId());
-
-            // Notify founder to review (non-critical)
-            try {
-                PaymentEventDTO event = new PaymentEventDTO(
-                        payment.getId(), payment.getInvestorId(), payment.getFounderId(),
-                        payment.getStartupId(), payment.getStartupName(), payment.getInvestorName(),
-                        payment.getAmount(), request.getRazorpayPaymentId(), "AWAITING_APPROVAL"
-                );
-                rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_PENDING_KEY, event);
-            } catch (Exception e) {
-                log.warn("RabbitMQ unavailable: {}", e.getMessage());
-            }
-
             response.put("success", true);
             response.put("message", "Payment received. Awaiting founder approval.");
             response.put("paymentId", payment.getId());
@@ -126,6 +126,10 @@ public class PaymentService {
             payment.setStatus(Payment.PaymentStatus.FAILED);
             payment.setUpdatedAt(LocalDateTime.now());
             paymentRepository.save(payment);
+
+            // Record saga failure
+            sagaOrchestrator.onStepFailed(payment.getId(), "Razorpay signature invalid");
+
             log.warn("Payment signature invalid for orderId: {}", request.getRazorpayOrderId());
             response.put("success", false);
             response.put("message", "Payment signature invalid");
@@ -133,7 +137,9 @@ public class PaymentService {
         return response;
     }
 
-    // Founder accepts the investment — fires notifications and emails
+    // ── Step 4a: Founder accepts — saga completes normally ───────────────────
+
+    @Override
     public Map<String, Object> acceptPayment(Long paymentId) {
         Map<String, Object> response = new HashMap<>();
         Payment payment = paymentRepository.findById(paymentId)
@@ -142,34 +148,19 @@ public class PaymentService {
         payment.setStatus(Payment.PaymentStatus.SUCCESS);
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
+
+        // Saga Step 4a: complete saga (publishes events + sends emails internally)
+        sagaOrchestrator.onPaymentAccepted(payment);
+
         log.info("Founder accepted payment. paymentId={}", paymentId);
-
-        // Publish success event → NotificationService sends in-app notifications
-        try {
-            PaymentEventDTO event = new PaymentEventDTO(
-                    payment.getId(), payment.getInvestorId(), payment.getFounderId(),
-                    payment.getStartupId(), payment.getStartupName(), payment.getInvestorName(),
-                    payment.getAmount(), payment.getRazorpayPaymentId(), "SUCCESS"
-            );
-            rabbitTemplate.convertAndSend(RabbitMQConfig.PAYMENT_EXCHANGE, RabbitMQConfig.PAYMENT_SUCCESS_KEY, event);
-        } catch (Exception e) {
-            log.warn("RabbitMQ unavailable: {}", e.getMessage());
-        }
-
-        // Send emails
-        try {
-            emailService.sendPaymentSuccessEmailToInvestor(payment);
-            emailService.sendPaymentReceivedEmailToFounder(payment);
-        } catch (Exception e) {
-            log.warn("Email sending failed: {}", e.getMessage());
-        }
-
         response.put("success", true);
         response.put("message", "Investment accepted successfully");
         return response;
     }
 
-    // Founder rejects the investment
+    // ── Step 4b: Founder rejects — saga runs compensating transactions ───────
+
+    @Override
     public Map<String, Object> rejectPayment(Long paymentId) {
         Map<String, Object> response = new HashMap<>();
         Payment payment = paymentRepository.findById(paymentId)
@@ -178,21 +169,39 @@ public class PaymentService {
         payment.setStatus(Payment.PaymentStatus.REJECTED);
         payment.setUpdatedAt(LocalDateTime.now());
         paymentRepository.save(payment);
-        log.info("Founder rejected payment. paymentId={}", paymentId);
 
-        response.put("success", true);
-        response.put("message", "Investment rejected");
+        // Saga compensation: refund investor + notify + email
+        boolean compensated;
+        try {
+            compensated = sagaOrchestrator.compensate(payment);
+        } catch (Exception e) {
+            log.error("Compensation threw unexpectedly for paymentId={}: {}", paymentId, e.getMessage());
+            compensated = false;
+        }
+
+        if (compensated) {
+            response.put("success", true);
+            response.put("message", "Investment rejected and refund initiated to investor's account");
+        } else {
+            response.put("success", false);
+            response.put("message", "Investment rejected but refund failed — please contact support");
+        }
         return response;
     }
 
+    // ── Query methods ─────────────────────────────────────────────────────────
+
+    @Override
     public List<Payment> getPaymentsByInvestor(Long investorId) {
         return paymentRepository.findByInvestorIdOrderByCreatedAtDesc(investorId);
     }
 
+    @Override
     public List<Payment> getPaymentsByFounder(Long founderId) {
         return paymentRepository.findByFounderIdOrderByCreatedAtDesc(founderId);
     }
 
+    @Override
     public List<Payment> getPaymentsByStartup(Long startupId) {
         return paymentRepository.findByStartupIdOrderByCreatedAtDesc(startupId);
     }

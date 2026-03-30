@@ -31,6 +31,7 @@ rabbitmq:
     startup-created: startup.created.queue
     startup-rejected: startup.rejected.queue
     payment-success: payment.success.queue
+    payment-failed: payment.failed.queue
 
 management:
   metrics:

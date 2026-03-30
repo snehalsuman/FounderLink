@@ -21,7 +21,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthService implements IAuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;

@@ -8,6 +8,7 @@ import com.capgemini.messaging.entity.Conversation;
 import com.capgemini.messaging.entity.Message;
 import com.capgemini.messaging.repository.ConversationRepository;
 import com.capgemini.messaging.repository.MessageRepository;
+import com.capgemini.messaging.mapper.MessageMapper;
 import com.capgemini.messaging.service.MessagingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,6 +25,7 @@ public class MessagingServiceImpl implements MessagingService {
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final MessageMapper messageMapper;
 
     @Override
     @Transactional
@@ -45,7 +47,7 @@ public class MessagingServiceImpl implements MessagingService {
                         .build()
         );
 
-        MessageResponse response = toMessageResponse(message);
+        MessageResponse response = messageMapper.toMessageResponse(message);
 
         // Broadcast to both participants subscribed on /topic/conversation/{id}
         messagingTemplate.convertAndSend(
@@ -60,7 +62,7 @@ public class MessagingServiceImpl implements MessagingService {
     public List<MessageResponse> getConversationMessages(Long conversationId) {
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId)
                 .stream()
-                .map(this::toMessageResponse)
+                .map(messageMapper::toMessageResponse)
                 .collect(Collectors.toList());
     }
 
@@ -68,7 +70,7 @@ public class MessagingServiceImpl implements MessagingService {
     public List<ConversationResponse> getMyConversations(Long userId) {
         return conversationRepository.findAllByUserId(userId)
                 .stream()
-                .map(c -> toConversationResponse(c, false))
+                .map(c -> messageMapper.toConversationResponse(c, List.of()))
                 .collect(Collectors.toList());
     }
 
@@ -83,30 +85,10 @@ public class MessagingServiceImpl implements MessagingService {
                                 .participant2Id(otherUserId)
                                 .build()
                 ));
-        return toConversationResponse(conversation, true);
+        List<MessageResponse> messages = messageRepository
+                .findByConversationIdOrderByCreatedAtAsc(conversation.getId())
+                .stream().map(messageMapper::toMessageResponse).collect(Collectors.toList());
+        return messageMapper.toConversationResponse(conversation, messages);
     }
 
-    private MessageResponse toMessageResponse(Message m) {
-        return MessageResponse.builder()
-                .id(m.getId())
-                .conversationId(m.getConversationId())
-                .senderId(m.getSenderId())
-                .content(m.getContent())
-                .createdAt(m.getCreatedAt())
-                .build();
-    }
-
-    private ConversationResponse toConversationResponse(Conversation c, boolean includeMessages) {
-        List<MessageResponse> messages = includeMessages
-                ? messageRepository.findByConversationIdOrderByCreatedAtAsc(c.getId())
-                        .stream().map(this::toMessageResponse).collect(Collectors.toList())
-                : List.of();
-        return ConversationResponse.builder()
-                .id(c.getId())
-                .participant1Id(c.getParticipant1Id())
-                .participant2Id(c.getParticipant2Id())
-                .createdAt(c.getCreatedAt())
-                .messages(messages)
-                .build();
-    }
 }

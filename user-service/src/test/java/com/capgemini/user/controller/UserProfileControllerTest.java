@@ -6,7 +6,8 @@ import com.capgemini.user.exception.GlobalExceptionHandler;
 import com.capgemini.user.exception.ResourceNotFoundException;
 import com.capgemini.user.filter.JwtAuthenticationFilter;
 import com.capgemini.user.filter.JwtUtil;
-import com.capgemini.user.service.UserProfileService;
+import com.capgemini.user.service.UserProfileCommandService;
+import com.capgemini.user.service.UserProfileQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,8 @@ class UserProfileControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
 
-    @MockitoBean private UserProfileService userProfileService;
+    @MockitoBean private UserProfileCommandService userProfileCommandService;
+    @MockitoBean private UserProfileQueryService userProfileQueryService;
     @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
     @MockitoBean private JwtUtil jwtUtil;
 
@@ -80,7 +82,7 @@ class UserProfileControllerTest {
 
     @Test
     void createProfile_withValidAuth_shouldReturn201() throws Exception {
-        given(userProfileService.createProfile(eq(1L), any(UserProfileRequest.class))).willReturn(sampleResponse);
+        given(userProfileCommandService.createProfile(eq(1L), any(UserProfileRequest.class))).willReturn(sampleResponse);
 
         mockMvc.perform(post("/users/profile")
                         .with(authentication(authFor(1L, "ROLE_FOUNDER"))).with(csrf())
@@ -93,7 +95,7 @@ class UserProfileControllerTest {
 
     @Test
     void getProfile_byId_shouldReturn200() throws Exception {
-        given(userProfileService.getProfileByUserId(1L)).willReturn(sampleResponse);
+        given(userProfileQueryService.getProfileByUserId(1L)).willReturn(sampleResponse);
 
         mockMvc.perform(get("/users/1").with(authentication(authFor(1L, "ROLE_FOUNDER"))))
                 .andExpect(status().isOk())
@@ -103,7 +105,7 @@ class UserProfileControllerTest {
 
     @Test
     void getProfile_whenNotFound_shouldReturn404() throws Exception {
-        given(userProfileService.getProfileByUserId(99L))
+        given(userProfileQueryService.getProfileByUserId(99L))
                 .willThrow(new ResourceNotFoundException("Profile not found for user ID: 99"));
 
         mockMvc.perform(get("/users/99").with(authentication(authFor(99L, "ROLE_FOUNDER"))))
@@ -119,7 +121,7 @@ class UserProfileControllerTest {
                 .portfolioLinks("https://alice.io")
                 .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now())
                 .build();
-        given(userProfileService.updateProfile(eq(1L), any(UserProfileRequest.class))).willReturn(updated);
+        given(userProfileCommandService.updateProfile(eq(1L), any(UserProfileRequest.class))).willReturn(updated);
 
         mockMvc.perform(put("/users/1")
                         .with(authentication(authFor(1L, "ROLE_FOUNDER"))).with(csrf())
@@ -132,7 +134,7 @@ class UserProfileControllerTest {
     @Test
     void getAllProfiles_withAdminRole_shouldReturn200() throws Exception {
         Page<UserProfileResponse> page = new PageImpl<>(List.of(sampleResponse));
-        given(userProfileService.getAllProfiles(any(Pageable.class))).willReturn(page);
+        given(userProfileQueryService.getAllProfiles(any(Pageable.class))).willReturn(page);
 
         mockMvc.perform(get("/users").with(authentication(authFor(1L, "ROLE_ADMIN"))))
                 .andExpect(status().isOk())

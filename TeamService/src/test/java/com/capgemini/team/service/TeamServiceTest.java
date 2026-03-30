@@ -17,6 +17,7 @@ import com.capgemini.team.feign.StartupClient;
 import com.capgemini.team.feign.StartupDTO;
 import com.capgemini.team.feign.UserClient;
 import com.capgemini.team.feign.UserDTO;
+import com.capgemini.team.mapper.TeamMapper;
 import com.capgemini.team.repository.TeamInvitationRepository;
 import com.capgemini.team.repository.TeamMemberRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,6 +69,9 @@ class TeamServiceTest {
     @Mock
     private org.springframework.cloud.client.circuitbreaker.CircuitBreaker userCircuitBreaker;
 
+    @Mock
+    private TeamMapper teamMapper;
+
     @InjectMocks
     private TeamService teamService;
 
@@ -118,6 +122,23 @@ class TeamServiceTest {
                 .role(TeamRole.CO_FOUNDER)
                 .build();
         sampleMember.setJoinedAt(LocalDateTime.now());
+
+        // Default mapper stubs (lenient — only used when the mapper is called)
+        when(teamMapper.toInvitationResponse(any(TeamInvitation.class))).thenAnswer(inv -> {
+            TeamInvitation inv1 = inv.getArgument(0);
+            return InvitationResponse.builder()
+                    .id(inv1.getId()).startupId(inv1.getStartupId())
+                    .invitedUserId(inv1.getInvitedUserId())
+                    .role(inv1.getRole()).status(inv1.getStatus())
+                    .createdAt(inv1.getCreatedAt()).build();
+        });
+        when(teamMapper.toMemberResponse(any(TeamMember.class))).thenAnswer(inv -> {
+            TeamMember m = inv.getArgument(0);
+            return TeamMemberResponse.builder()
+                    .id(m.getId()).startupId(m.getStartupId())
+                    .userId(m.getUserId()).role(m.getRole())
+                    .joinedAt(m.getJoinedAt()).build();
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -318,9 +339,9 @@ class TeamServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void getMyInvitations_shouldReturnPendingInvitations() {
+    void getMyInvitations_shouldReturnInvitations() {
         // given
-        when(invitationRepository.findByInvitedUserIdAndStatus(2L, InvitationStatus.PENDING))
+        when(invitationRepository.findByInvitedUserIdOrderByCreatedAtDesc(2L))
                 .thenReturn(List.of(sampleInvitation));
 
         // when
@@ -329,7 +350,6 @@ class TeamServiceTest {
         // then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getInvitedUserId()).isEqualTo(2L);
-        assertThat(result.get(0).getStatus()).isEqualTo(InvitationStatus.PENDING);
-        verify(invitationRepository).findByInvitedUserIdAndStatus(2L, InvitationStatus.PENDING);
+        verify(invitationRepository).findByInvitedUserIdOrderByCreatedAtDesc(2L);
     }
 }

@@ -3,6 +3,7 @@ package com.capgemini.notification.service.impl;
 import com.capgemini.notification.dto.NotificationResponse;
 import com.capgemini.notification.entity.Notification;
 import com.capgemini.notification.enums.NotificationType;
+import com.capgemini.notification.mapper.NotificationMapper;
 import com.capgemini.notification.repository.NotificationRepository;
 import com.capgemini.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final NotificationMapper notificationMapper;
 
     @Override
     @Transactional
@@ -35,13 +37,13 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public List<NotificationResponse> getNotificationsByUser(Long userId) {
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream().map(notificationMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
     public List<NotificationResponse> getUnreadNotifications(Long userId) {
         return notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+                .stream().map(notificationMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
@@ -50,17 +52,7 @@ public class NotificationServiceImpl implements NotificationService {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new EntityNotFoundException("Notification not found"));
         notification.setIsRead(true);
-        return toResponse(notificationRepository.save(notification));
+        return notificationMapper.toResponse(notificationRepository.save(notification));
     }
 
-    private NotificationResponse toResponse(Notification n) {
-        return NotificationResponse.builder()
-                .id(n.getId())
-                .userId(n.getUserId())
-                .message(n.getMessage())
-                .type(n.getType())
-                .isRead(n.getIsRead())
-                .createdAt(n.getCreatedAt())
-                .build();
-    }
 }

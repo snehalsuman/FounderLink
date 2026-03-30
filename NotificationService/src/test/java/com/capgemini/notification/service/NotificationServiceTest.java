@@ -4,6 +4,7 @@ import com.capgemini.notification.dto.NotificationResponse;
 import com.capgemini.notification.entity.Notification;
 import com.capgemini.notification.enums.NotificationType;
 import com.capgemini.notification.repository.NotificationRepository;
+import com.capgemini.notification.mapper.NotificationMapper;
 import com.capgemini.notification.service.impl.NotificationServiceImpl;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,10 +27,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class NotificationServiceTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private NotificationMapper notificationMapper;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;
@@ -44,6 +51,15 @@ class NotificationServiceTest {
                 .isRead(false)
                 .createdAt(LocalDateTime.now())
                 .build();
+
+        // Default mapper stub
+        when(notificationMapper.toResponse(any(Notification.class))).thenAnswer(inv -> {
+            Notification n = inv.getArgument(0);
+            return NotificationResponse.builder()
+                    .id(n.getId()).userId(n.getUserId()).message(n.getMessage())
+                    .type(n.getType()).isRead(n.getIsRead()).createdAt(n.getCreatedAt())
+                    .build();
+        });
     }
 
     // -----------------------------------------------------------------------

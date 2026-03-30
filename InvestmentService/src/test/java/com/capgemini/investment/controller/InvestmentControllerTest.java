@@ -6,7 +6,8 @@ import com.capgemini.investment.config.SecurityConfig;
 import com.capgemini.investment.dto.InvestmentRequest;
 import com.capgemini.investment.dto.InvestmentResponse;
 import com.capgemini.investment.enums.InvestmentStatus;
-import com.capgemini.investment.service.InvestmentService;
+import com.capgemini.investment.service.InvestmentCommandService;
+import com.capgemini.investment.service.InvestmentQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +46,10 @@ class InvestmentControllerTest {
     private ObjectMapper objectMapper;
 
     @MockitoBean
-    private InvestmentService investmentService;
+    private InvestmentCommandService investmentCommandService;
+
+    @MockitoBean
+    private InvestmentQueryService investmentQueryService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -88,7 +92,7 @@ class InvestmentControllerTest {
         // given
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                 1L, null, List.of(new SimpleGrantedAuthority("ROLE_INVESTOR")));
-        when(investmentService.createInvestment(any(InvestmentRequest.class), eq(1L)))
+        when(investmentCommandService.createInvestment(any(InvestmentRequest.class), eq(1L)))
                 .thenReturn(sampleResponse);
 
         // when / then
@@ -136,7 +140,7 @@ class InvestmentControllerTest {
         // given
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                 1L, null, List.of(new SimpleGrantedAuthority("ROLE_INVESTOR")));
-        when(investmentService.getInvestmentsByStartup(10L))
+        when(investmentQueryService.getInvestmentsByStartup(10L))
                 .thenReturn(List.of(sampleResponse));
 
         // when / then
@@ -163,7 +167,7 @@ class InvestmentControllerTest {
                 .status(InvestmentStatus.APPROVED)
                 .createdAt(LocalDateTime.now())
                 .build();
-        when(investmentService.approveInvestment(eq(100L), eq(1L))).thenReturn(approvedResponse);
+        when(investmentCommandService.approveInvestment(eq(100L), eq(1L))).thenReturn(approvedResponse);
 
         // when / then
         mockMvc.perform(put("/investments/100/approve")
@@ -190,7 +194,7 @@ class InvestmentControllerTest {
                 .status(InvestmentStatus.REJECTED)
                 .createdAt(LocalDateTime.now())
                 .build();
-        when(investmentService.rejectInvestment(eq(100L), eq(1L))).thenReturn(rejectedResponse);
+        when(investmentCommandService.rejectInvestment(eq(100L), eq(1L))).thenReturn(rejectedResponse);
 
         // when / then
         mockMvc.perform(put("/investments/100/reject")

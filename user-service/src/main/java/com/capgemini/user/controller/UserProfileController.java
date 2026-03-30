@@ -42,8 +42,13 @@ public class UserProfileController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponse> getProfileByUserId(@PathVariable("id") Long userId) {
-        UserProfileResponse response = userProfileQueryService.getProfileByUserId(userId);
-        return ResponseEntity.ok(response);
+        try {
+            UserProfileResponse response = userProfileQueryService.getProfileByUserId(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // No profile exists yet — return empty shell so the form renders with blank fields
+            return ResponseEntity.ok(UserProfileResponse.builder().userId(userId).build());
+        }
     }
 
     @PutMapping("/{id}")

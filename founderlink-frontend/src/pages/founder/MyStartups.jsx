@@ -23,11 +23,14 @@ const MyStartups = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this startup?')) return;
+    setStartups(prev => prev.filter(s => s.id !== id));
     try {
       await deleteStartup(id);
       toast.success('Startup deleted');
+    } catch {
+      toast.error('Failed to delete');
       load();
-    } catch { toast.error('Failed to delete'); }
+    }
   };
 
   return (

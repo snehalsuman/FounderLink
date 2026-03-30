@@ -4,6 +4,8 @@ import com.capgemini.authservice.dto.AuthResponse;
 import com.capgemini.authservice.dto.RegisterResponse;
 import com.capgemini.authservice.exception.CustomException;
 import com.capgemini.authservice.exception.GlobalExceptionHandler;
+import com.capgemini.authservice.mapper.AuthMapper;
+import com.capgemini.authservice.repository.UserRepository;
 import com.capgemini.authservice.security.SecurityConfig;
 import com.capgemini.authservice.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +37,12 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private UserRepository userRepository;
+
+    @MockitoBean
+    private AuthMapper authMapper;
 
     @Autowired
     private ObjectMapper objectMapper;

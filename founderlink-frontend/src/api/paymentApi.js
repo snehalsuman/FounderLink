@@ -17,3 +17,4 @@ export const rejectPayment = (paymentId) => paymentApi.put(`/api/payments/${paym
 export const getPaymentsByInvestor = (investorId) => paymentApi.get(`/api/payments/investor/${investorId}`);
 export const getPaymentsByFounder = (founderId) => paymentApi.get(`/api/payments/founder/${founderId}`);
 export const getPaymentsByStartup = (startupId) => paymentApi.get(`/api/payments/startup/${startupId}`);
+export const getSagaStatus = (paymentId) => paymentApi.get(`/api/payments/${paymentId}/saga`);

@@ -22,7 +22,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/startups")
-public class StartupController {
+public class
+StartupController {
 
     private final StartupCommandService startupCommandService;
     private final StartupQueryService startupQueryService;

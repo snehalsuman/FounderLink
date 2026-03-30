@@ -22,6 +22,7 @@ import com.capgemini.investment.exception.ServiceUnavailableException;
 import com.capgemini.investment.exception.UnauthorizedException;
 import com.capgemini.investment.feign.StartupClient;
 import com.capgemini.investment.feign.StartupDTO;
+import com.capgemini.investment.mapper.InvestmentMapper;
 import com.capgemini.investment.repository.InvestmentRepository;
 
 import java.util.List;
@@ -35,6 +36,7 @@ public class InvestmentService implements InvestmentCommandService, InvestmentQu
     private final StartupClient startupClient;
     private final EventPublisher eventPublisher;
     private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
+    private final InvestmentMapper investmentMapper;
 
     private StartupDTO fetchStartup(Long startupId) {
         return circuitBreakerFactory.create("startup-service").run(
@@ -79,14 +81,14 @@ public class InvestmentService implements InvestmentCommandService, InvestmentQu
         log.info("Investment created: id={}, startupId={}, investorId={}",
                 investment.getId(), investment.getStartupId(), investment.getInvestorId());
 
-        return mapToResponse(investment);
+        return investmentMapper.toResponse(investment);
     }
 
     @Override
     @Cacheable(value = "investmentsByStartup", key = "#startupId")
     public List<InvestmentResponse> getInvestmentsByStartup(Long startupId) {
         return investmentRepository.findByStartupId(startupId).stream()
-                .map(this::mapToResponse)
+                .map(investmentMapper::toResponse)
                 .collect(java.util.stream.Collectors.toList());
     }
 
@@ -94,7 +96,7 @@ public class InvestmentService implements InvestmentCommandService, InvestmentQu
     @Cacheable(value = "investmentsByInvestor", key = "#investorId")
     public List<InvestmentResponse> getInvestmentsByInvestor(Long investorId) {
         return investmentRepository.findByInvestorId(investorId).stream()
-                .map(this::mapToResponse)
+                .map(investmentMapper::toResponse)
                 .collect(java.util.stream.Collectors.toList());
     }
 
@@ -129,7 +131,7 @@ public class InvestmentService implements InvestmentCommandService, InvestmentQu
 
         log.info("Investment approved: id={}", investmentId);
 
-        return mapToResponse(investment);
+        return investmentMapper.toResponse(investment);
     }
 
     @Override
@@ -156,17 +158,7 @@ public class InvestmentService implements InvestmentCommandService, InvestmentQu
 
         log.info("Investment rejected: id={}", investmentId);
 
-        return mapToResponse(investment);
+        return investmentMapper.toResponse(investment);
     }
 
-    private InvestmentResponse mapToResponse(Investment investment) {
-        return InvestmentResponse.builder()
-                .id(investment.getId())
-                .startupId(investment.getStartupId())
-                .investorId(investment.getInvestorId())
-                .amount(investment.getAmount())
-                .status(investment.getStatus())
-                .createdAt(investment.getCreatedAt())
-                .build();
-    }
 }

@@ -13,6 +13,7 @@ public class RabbitMQConfig {
     public static final String PAYMENT_EXCHANGE = "founderlink.exchange";
     public static final String PAYMENT_SUCCESS_QUEUE = "payment.success.queue";
     public static final String PAYMENT_FAILED_QUEUE = "payment.failed.queue";
+    public static final String PAYMENT_PENDING_QUEUE = "payment.pending.queue";
     public static final String PAYMENT_SUCCESS_KEY = "payment.success";
     public static final String PAYMENT_FAILED_KEY = "payment.failed";
     public static final String PAYMENT_PENDING_KEY = "payment.pending";
@@ -30,6 +31,18 @@ public class RabbitMQConfig {
     @Bean
     public Queue paymentFailedQueue() {
         return new Queue(PAYMENT_FAILED_QUEUE, true);
+    }
+
+    @Bean
+    public Queue paymentPendingQueue() {
+        return new Queue(PAYMENT_PENDING_QUEUE, true);
+    }
+
+    @Bean
+    public Binding paymentPendingBinding() {
+        return BindingBuilder.bind(paymentPendingQueue())
+                .to(paymentExchange())
+                .with(PAYMENT_PENDING_KEY);
     }
 
     @Bean
