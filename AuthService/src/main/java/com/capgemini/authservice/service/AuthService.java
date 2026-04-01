@@ -4,7 +4,11 @@ import com.capgemini.authservice.dto.AuthResponse;
 import com.capgemini.authservice.dto.LoginRequest;
 import com.capgemini.authservice.dto.RegisterRequest;
 import com.capgemini.authservice.dto.RegisterResponse;
+import com.capgemini.authservice.dto.UserRegisteredEvent;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,12 +25,18 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService implements IAuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RabbitTemplate rabbitTemplate;
+    private final WelcomeEmailService welcomeEmailService;
+
+    @Value("${rabbitmq.exchange}")
+    private String exchange;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -49,6 +59,21 @@ public class AuthService implements IAuthService {
                 .build();
 
         UserEntity savedUser = userRepository.save(user);
+
+        welcomeEmailService.sendWelcome(savedUser.getEmail(), savedUser.getName(), role.getName());
+
+        try {
+            rabbitTemplate.convertAndSend(exchange, "user.registered",
+                    UserRegisteredEvent.builder()
+                            .userId(savedUser.getId())
+                            .name(savedUser.getName())
+                            .email(savedUser.getEmail())
+                            .role(role.getName())
+                            .build());
+            log.info("Published user.registered event for userId={}", savedUser.getId());
+        } catch (Exception e) {
+            log.warn("Failed to publish user.registered event for userId={}: {}", savedUser.getId(), e.getMessage());
+        }
 
         return RegisterResponse.builder()
                 .userId(savedUser.getId())
@@ -75,6 +100,7 @@ public class AuthService implements IAuthService {
                 .token(accessToken)
                 .refreshToken(refreshToken)
                 .userId(user.getId())
+                .name(user.getName())
                 .email(user.getEmail())
                 .role(roleName)
                 .build();
@@ -98,6 +124,7 @@ public class AuthService implements IAuthService {
                 .token(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .userId(user.getId())
+                .name(user.getName())
                 .email(user.getEmail())
                 .role(roleName)
                 .build();

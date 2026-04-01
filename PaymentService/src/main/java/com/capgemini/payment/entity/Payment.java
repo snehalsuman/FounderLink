@@ -22,6 +22,8 @@ public class Payment {
     private Long startupId;
     private String startupName;
     private String investorName;
+    private String investorEmail;
+    private String founderEmail;
 
     private Double amount;
     private String currency = "INR";

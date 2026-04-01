@@ -55,6 +55,8 @@ public class PaymentService implements IPaymentService {
         payment.setStartupId(request.getStartupId());
         payment.setStartupName(request.getStartupName());
         payment.setInvestorName(request.getInvestorName());
+        payment.setInvestorEmail(request.getInvestorEmail());
+        payment.setFounderEmail(request.getFounderEmail());
         payment.setAmount(request.getAmount());
         payment.setStatus(Payment.PaymentStatus.PENDING);
         Payment saved = paymentRepository.save(payment);

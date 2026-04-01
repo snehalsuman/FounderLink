@@ -21,6 +21,17 @@ spring:
     port: 5672
     username: guest
     password: guest
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SPRING_MAIL_USERNAME:snehals0203@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:uzte iyhv uryb mhdh}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 rabbitmq:
   exchange: founderlink.exchange
@@ -32,6 +43,7 @@ rabbitmq:
     startup-rejected: startup.rejected.queue
     payment-success: payment.success.queue
     payment-failed: payment.failed.queue
+    user-registered: user.registered.queue
 
 management:
   metrics:

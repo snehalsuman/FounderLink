@@ -9,10 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuthResponse {
-
-    private String token;
-    private String refreshToken;
+public class UserRegisteredEvent {
     private Long userId;
     private String name;
     private String email;

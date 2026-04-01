@@ -36,6 +36,9 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.payment-failed}")
     private String paymentFailedQueue;
 
+    @Value("${rabbitmq.queue.user-registered}")
+    private String userRegisteredQueue;
+
     @Bean
     public TopicExchange founderLinkExchange() {
         return new TopicExchange(exchange);
@@ -77,6 +80,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue userRegisteredQueue() {
+        return QueueBuilder.durable(userRegisteredQueue).build();
+    }
+
+    @Bean
     public Binding investmentCreatedBinding() {
         return BindingBuilder.bind(investmentCreatedQueue()).to(founderLinkExchange()).with("investment.created");
     }
@@ -112,14 +120,12 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public MessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public Binding userRegisteredBinding() {
+        return BindingBuilder.bind(userRegisteredQueue()).to(founderLinkExchange()).with("user.registered");
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
-        RabbitTemplate rabbitTemplate = new RabbitTemplate(connectionFactory);
-        rabbitTemplate.setMessageConverter(messageConverter());
-        return rabbitTemplate;
+    public MessageConverter messageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 }

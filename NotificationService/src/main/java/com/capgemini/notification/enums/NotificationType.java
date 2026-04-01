@@ -1,6 +1,7 @@
 package com.capgemini.notification.enums;
 
 public enum NotificationType {
+    USER_REGISTERED,
     STARTUP_CREATED,
     STARTUP_REJECTED,
     INVESTMENT_CREATED,

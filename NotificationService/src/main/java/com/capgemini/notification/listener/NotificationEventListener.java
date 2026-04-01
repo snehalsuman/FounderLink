@@ -6,6 +6,7 @@ import com.capgemini.notification.event.InvestmentCreatedEvent;
 import com.capgemini.notification.event.StartupCreatedEvent;
 import com.capgemini.notification.event.StartupRejectedEvent;
 import com.capgemini.notification.event.TeamInviteSentEvent;
+import com.capgemini.notification.service.EmailService;
 import com.capgemini.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,28 @@ import java.util.Map;
 public class NotificationEventListener {
 
     private final NotificationService notificationService;
+    private final EmailService emailService;
+
+    @RabbitListener(queues = "${rabbitmq.queue.user-registered}")
+    public void handleUserRegistered(Map<String, Object> payload) {
+        try {
+            Long userId   = payload.get("userId") != null ? ((Number) payload.get("userId")).longValue() : null;
+            String name   = (String) payload.get("name");
+            String email  = (String) payload.get("email");
+            String role   = (String) payload.get("role");
+            log.info("Received user.registered event — userId={} email={} role={}", userId, email, role);
+
+            if (userId != null) {
+                notificationService.createNotification(
+                        userId,
+                        "Welcome to FounderLink, " + name + "! Your " + formatRole(role) + " profile has been created successfully.",
+                        NotificationType.USER_REGISTERED
+                );
+            }
+        } catch (Exception e) {
+            log.error("Failed to process user.registered event: {}", e.getMessage());
+        }
+    }
 
     @RabbitListener(queues = "${rabbitmq.queue.startup-created}")
     public void handleStartupCreated(StartupCreatedEvent event) {
@@ -128,5 +151,14 @@ public class NotificationEventListener {
         } catch (Exception e) {
             log.error("Failed to process payment success event: {}", e.getMessage());
         }
+    }
+
+    private String formatRole(String role) {
+        return switch (role) {
+            case "ROLE_FOUNDER"   -> "Founder";
+            case "ROLE_INVESTOR"  -> "Investor";
+            case "ROLE_COFOUNDER" -> "Co-Founder";
+            default               -> "member";
+        };
     }
 }
